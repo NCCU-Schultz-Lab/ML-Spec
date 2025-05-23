@@ -127,7 +127,7 @@ class PyTorchDataset(Dataset):
         labels_array = np.kron(np.array(classes, dtype=int), np.ones(nt2s))
         IDnums_array = np.kron(np.array(system_ID_numbers, dtype=int), np.ones(nt2s))
         
-        if p['task'] == 'noise_addition':
+        if p['task'] == 'noise':
             # drop the spectra
             data_array = data_array[full_mask,:,:]
             t2_array = t2_array[full_mask]

@@ -4,6 +4,8 @@ Module with functions for validation, debugging, and sanity checks of dataset co
 
 import numpy as np
 import random
+import sys
+import gc, inspect
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
@@ -58,3 +60,31 @@ def initialize_check_system(p, central_data):
     
     return check_spectrum
 
+
+def show_globals(min_bytes=1e6):  # e.g., show anything > 1MB
+    for k, v in globals().items():
+        try:
+            size = sys.getsizeof(v)
+            if size > min_bytes:
+                return f"GLOBAL var: {k:20s} — {size/1e6:.2f} MB — {type(v)}"
+        except Exception:
+            pass
+
+def show_locals(frame=None, min_bytes=1e6):
+    import inspect
+    frame = frame or inspect.currentframe().f_back
+    for k, v in frame.f_locals.items():
+        try:
+            size = sys.getsizeof(v)
+            if size > min_bytes:
+                return f"LOCAL var: {k:20s} — {size/1e6:.2f} MB — {type(v)}"
+        except Exception:
+            pass
+
+
+def clear_iteration_variables(var_names):
+    frame = inspect.currentframe().f_back
+    for var in var_names:
+        if var in frame.f_locals:
+            frame.f_locals[var] = None
+    gc.collect()

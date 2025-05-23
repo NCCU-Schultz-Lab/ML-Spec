@@ -58,7 +58,7 @@ def initialize_training(p, dirs, train_loader, test_loader):
     
     n_batches_training = len(train_loader)
     n_batches_testing = len(test_loader)
-    print_to_log_file(dirs['log file'], f'{n_batches_training} batches in train loader, {n_batches_testing} in test loader...''')
+    print_to_log_file(dirs['log file'], f'   {n_batches_training} batches in train loader, {n_batches_testing} in test loader.''')
     
     # dictionaries to keep track of items per epoch per batch
     training_dict = {'number of batches': n_batches_training,
@@ -188,7 +188,7 @@ def save_iteration_outputs(p, dirs, network_details, classes, class_distribution
         try:
         
             import os
-            save_loc = os.path.join(dirs['outputs'],"ML_reports")
+            save_loc = os.path.join(dirs['job outputs'],"ml-reports")
             if not os.path.exists(save_loc):
                 os.makedirs(save_loc)
             
@@ -198,7 +198,7 @@ def save_iteration_outputs(p, dirs, network_details, classes, class_distribution
                                       'TRAINING details': training_dict, 'TESTING IN TRAINING details': testing_in_training_dict, 'TESTING details': testing_dict,
                                       'pollution summary': pollute_summary})
             
-            with open(f"{save_loc}/ITERATION_{iteration_number+1}.pkl", 'wb') as f:
+            with open(f"{save_loc}/iteration_{iteration_number+1}.pkl", 'wb') as f:
                 pickle.dump(iteration_results, f)      
             
             print_to_log_file(dirs['log file'],'Results saved...\n')
@@ -211,7 +211,7 @@ def save_iteration_outputs(p, dirs, network_details, classes, class_distribution
         
         try:    
             import os
-            save_loc = os.path.join(dirs['outputs'],"ML_reports")
+            save_loc = os.path.join(dirs['job outputs'],"ml-reports")
             if not os.path.exists(save_loc):
                 os.makedirs(save_loc)
             
@@ -223,7 +223,7 @@ def save_iteration_outputs(p, dirs, network_details, classes, class_distribution
                                       'TESTING details': testing_dict,
                                       'pollution summary': pollute_summary})
             
-            with open(f"{save_loc}/ITERATION_{iteration_number+1}.pkl", 'wb') as f:
+            with open(f"{save_loc}/iteration_{iteration_number+1}.pkl", 'wb') as f:
                 pickle.dump(iteration_results, f)      
             
             print_to_log_file(dirs['log file'],'Results saved...\n')
@@ -238,26 +238,52 @@ def save_iteration_outputs(p, dirs, network_details, classes, class_distribution
 
 def save_training_reports(p, dirs, training_dict, testing_in_training_dict, iteration_number):
     
-    if p['save training reports'] == 'True':
+    if p['save training reports'] == True:
         try:
             import os
-            save_loc = os.path.join(dirs['outputs'],"Training_reports")
+            save_loc = os.path.join(dirs['job outputs'],"training-reports")
             if not os.path.exists(save_loc):
                 os.makedirs(save_loc)
                 
             xvect = np.arange(p['number of epochs']) + 1
             keys_to_plot = ['accuracy', 'micro f1', 'macro f1']
             for key in keys_to_plot:
-                create_and_save_line_plot(xvect, training_dict[key], key, 'epoch', f'{key} (%)', 0, 100, 
-                                          f"{save_loc}/train_{key.strip()}_{iteration_number+1}.png")
+                create_and_save_line_plot(x = xvect, 
+                                          y = training_dict[key],
+                                          dirs = dirs,
+                                          save = True,
+                                          title = key, 
+                                          x_label = 'epoch', 
+                                          y_label = f'{key} (%)',
+                                          y_limits = (0, 100),
+                                          save_dir = save_loc,
+                                          name = f"iteration_{iteration_number+1}_train_{key.strip()}")
             
             #save loss plot
-            create_and_save_line_plot(xvect, training_dict['loss per image'], 'loss per image', 'epoch', 'loss per image', 0, np.max(training_dict['loss per image']), 
-                                      f"{save_loc}/train_loss_per_image_{iteration_number+1}.png")
+            create_and_save_line_plot(x = xvect, 
+                                      y = training_dict['loss per image'],
+                                      dirs = dirs,
+                                      save = True,
+                                      title = 'loss per image', 
+                                      x_label = 'epoch', 
+                                      y_label = 'loss per image', 
+                                      y_limits = (0, np.max(training_dict['loss per image'])),
+                                      save_dir = save_loc,
+                                      name = f"iteration_{iteration_number+1}_train_loss_per_image"
+                                      )
             
             for key in keys_to_plot:
-                create_and_save_line_plot(xvect, testing_in_training_dict[key], key, 'epoch', f'{key} (%)', 0, 100,
-                                          f"{save_loc}/traintest_{key.strip()}_{iteration_number+1}.png")
+                
+                create_and_save_line_plot(x = xvect, 
+                                          y = testing_in_training_dict[key], 
+                                          dirs = dirs,
+                                          title = key, 
+                                          save = True,
+                                          x_label = 'epoch', 
+                                          y_label = f'{key} (%)', 
+                                          y_limits = (0, 100),
+                                          save_dir = save_loc,
+                                          name = f"iteration_{iteration_number+1}_traintest_{key.strip()}")
 
         except Exception as e:
             print_to_log_file(dirs['log file'], f"An error occurred while generating or saving training reports: {e}")
@@ -270,23 +296,23 @@ def save_training_reports(p, dirs, training_dict, testing_in_training_dict, iter
         
 def update_dataframes_post_testing(p, dirs, iteration_number, iteration_results, testing_dict, accuracy_df, f1_df):
     
-    if p['num_vars'] == 1:
-        print_to_log_file(dirs['log file'], f'''~~~ RESULTS ~~~
-{p['scan key']} = {iteration_results['scanned item value']}''')
+    if p['number of swept variables'] == 1:
+        print_to_log_file(dirs['log file'], f'''\n~~~ RESULTS ~~~
+  {p['scan key']} = {iteration_results['scanned item value']}''')
 
-    elif p['num_vars'] == 2:
+    elif p['number of swept variables'] == 2:
         print_to_log_file(dirs['log file'], f'''~~~ RESULTS ~~~
-{p['scan key']['1']} = {iteration_results['scanned item 1 value']}
-{p['scan key']['2']} = {iteration_results['scanned item 2 value']}''')
+  {p['scan key']['1']} = {iteration_results['scanned item 1 value']}
+  {p['scan key']['2']} = {iteration_results['scanned item 2 value']}''')
      
     print_to_log_file(dirs['log file'], f'''
- correct predictions = {testing_dict['number of correct predictions']}
-total spectra tested = {testing_dict['number of images']}
-            accuracy = {np.round(testing_dict['accuracy'], decimals=2)}
-            micro f1 = {np.round(testing_dict['micro f1'], decimals=2)}
-            macro f1 = {np.round(testing_dict['macro f1'], decimals=2)}
-         weighted f1 = {np.round(testing_dict['weighted f1'], decimals=2)}
-                top2 = {np.round(testing_dict['top2 accuracy'], decimals=2)}''')
+  correct predictions = {testing_dict['number of correct predictions']}
+ total spectra tested = {testing_dict['number of images']}
+             accuracy = {np.round(testing_dict['accuracy'], decimals=2)}
+             micro f1 = {np.round(testing_dict['micro f1'], decimals=2)}
+             macro f1 = {np.round(testing_dict['macro f1'], decimals=2)}
+          weighted f1 = {np.round(testing_dict['weighted f1'], decimals=2)}
+                 top2 = {np.round(testing_dict['top2 accuracy'], decimals=2)}''')
 
     accuracy_df.at[iteration_number+1, 'Test accuracy'] = np.round(testing_dict['accuracy'], decimals=3)
     accuracy_df.at[iteration_number+1, 'Test top2 accuracy'] = np.round(testing_dict['top2 accuracy'], decimals=3)

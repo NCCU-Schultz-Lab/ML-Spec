@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 from modules.utils import print_to_log_file
+import os
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
@@ -52,7 +53,22 @@ def plot_spectrum(data_dict: dict, save_path: str):
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
-def create_and_save_line_plot(x: np.ndarray, y: np.ndarray, title: str, x_label: str, y_label: str, ymin: float, ymax: float, save_path: str):
+def create_and_save_line_plot(x: np.ndarray, 
+                              y: np.ndarray,
+                              dirs: dict,
+                              save = False,
+                              save_dir = None,
+                              name = None,
+                              title = '', 
+                              x_label = 'x', 
+                              y_label = 'y',
+                              y_limits = None,
+                              rot = 0,
+                              dpi = 300,
+                              width = 8,
+                              height = 6,
+                              grids = False,
+                              x_tick_labels = None):
     """
     Creates and saves a line plot.
     
@@ -66,23 +82,42 @@ def create_and_save_line_plot(x: np.ndarray, y: np.ndarray, title: str, x_label:
         ymax (float): Maximum Y-axis value.
         save_path (str): File path to save the plot.
     """
-    plt.figure(figsize=(8, 6))  # Set the figure size (optional)
-    plt.plot(x, y, linewidth=2)
-    plt.title(title, fontsize=20, fontweight='bold')
-    plt.xlabel(x_label, fontsize=18)
-    plt.ylabel(y_label, fontsize=18)
-    plt.ylim((ymin, ymax))
-    plt.xticks(fontname='DejaVu Sans', fontsize=16)
-    plt.yticks(fontname='DejaVu Sans', fontsize=16)
-    plt.grid(True)
-    plt.savefig(save_path, dpi=300, bbox_inches='tight')
-    plt.close()
-
-    pass
+    
+    if save:
+        if save_dir is None or name is None:
+            print_to_log_file(dirs['log file'], '  ERROR: plot cannot be saved without path and name provided')
+        
+        else:
+    
+            plt.figure(figsize=(width, height))
+            plt.plot(x, y, linewidth=2)
+            plt.title(title, fontsize=20, fontname='DejaVu Sans', fontweight='bold')
+            plt.xlabel(x_label, fontsize=18)
+            plt.ylabel(y_label, fontsize=18)
+            if y_limits:
+                plt.ylim(y_limits)
+                
+            if x_tick_labels is not None:
+                plt.xticks(ticks=x, labels=x_tick_labels, rotation=rot, fontsize=14)
+            else:
+                plt.xticks(fontname='DejaVu Sans', fontsize=16, rotation=rot)
+                
+            plt.yticks(fontname='DejaVu Sans', fontsize=16)
+            plt.grid(grids)
+            plt.savefig(f"{save_dir}/{name}.png", dpi=dpi, bbox_inches='tight')
+            plt.close()
+            
+            with open(f"{save_dir}/{name}.pkl", 'wb') as f:
+                pickle.dump({'x': x, 'y': y}, f)
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
-def save_checked_spectrum(p: dict, dirs: dict, check_spectrum: dict, iteration_data: dict, iteration_number: int):
+def save_checked_spectrum(p: dict, 
+                          dirs: dict, 
+                          check_spectrum: dict, 
+                          iteration_data: dict, 
+                          iteration_number: int,
+                          save_data = False):
     """
     Saves a sample 2D spectrum for debugging purposes.
     
@@ -92,19 +127,24 @@ def save_checked_spectrum(p: dict, dirs: dict, check_spectrum: dict, iteration_d
         iteration_data (dict): Dataset of the current iteration.
         iteration_number (int): Iteration index.
     """
-    if p['save 2D plots'] == 'True':
+    if p['save 2D plots'] == True:
         
-        import os
-        save_loc = os.path.join(dirs['outputs'],"2D_check_plots")
+        save_loc = os.path.join(dirs['job outputs'],"check-spectra")
         if not os.path.exists(save_loc):
             os.makedirs(save_loc)
             
         if (iteration_number+1) % p['spec save interval'] == 0:
             try:
                 check_spectrum['spectrum'] = iteration_data['spectra'][check_spectrum['selected system index'],:,:,0]
-                plot_spectrum(check_spectrum, f"{save_loc}/job{p['jobname']}_spec_{iteration_number+1}.png")
-                with open(f"{save_loc}/job{p['jobname']}_spec_{iteration_number+1}.pkl", 'wb') as f:
+                plot_spectrum(check_spectrum, 
+                              f"{save_loc}/iteration_{iteration_number+1}.png")
+                
+                with open(f"{save_loc}/iteration_{iteration_number+1}.pkl", 'wb') as f:
                     pickle.dump(check_spectrum, f)
+                    
+                full_check_spectrum_data = iteration_data['spectra'][check_spectrum['selected system index'],:,:,:]
+                with open(f"{save_loc}/iteration_{iteration_number+1}_full.pkl", 'wb') as f:
+                    pickle.dump(full_check_spectrum_data, f)
                 
             except Exception as e:
                 print_to_log_file(dirs['log file'], f'An error occured while generating or saving 2D spectrum: {e}')

@@ -8,7 +8,10 @@ from modules.utils import print_to_log_file
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
-def add_noise(data_dict: dict, logfilename: str, method: str, noise_fraction: float, SNR_filter: bool, threshold: float) -> tuple:
+def add_noise(p: dict,
+              data_dict: dict, 
+              logfilename: str,
+              noise_fraction: float) -> tuple:
     """
     Adds noise to the dataset based on the specified method.
     
@@ -27,10 +30,17 @@ def add_noise(data_dict: dict, logfilename: str, method: str, noise_fraction: fl
     """
     
     # generate arrays to log widths of clean spectra and noise
-    data_dict['noise width'] = np.zeros((data_dict['number of systems'], data_dict['nt2']))
-    data_dict['signal width'] = np.zeros((data_dict['number of systems'], data_dict['nt2']))
+    data_dict['noise width'] = np.zeros((data_dict['number of systems'], 
+                                         data_dict['nt2']))
+    data_dict['signal width'] = np.zeros((data_dict['number of systems'], 
+                                          data_dict['nt2']))
     
     SeedVec = deepcopy(data_dict['system ID numbers'])
+    nw1 = data_dict['nw1']
+    nw3 = data_dict['nw3']
+    nt2 = data_dict['nt2']
+    
+    method = p['noise method']
     
     if method not in ['additive', 'intensity-dependent']:
         error_message = f"ERROR: Invalid noise method '{method}' specified. Valid options are: ['additive', 'intensity-dependent']."
@@ -40,6 +50,8 @@ def add_noise(data_dict: dict, logfilename: str, method: str, noise_fraction: fl
     
     if method == 'additive':
         # signal + max(signal) * noise
+        
+        submethod = p['noise submethod']
             
         # list of maximum signals as a function of system
         maxvals = []
@@ -52,21 +64,47 @@ def add_noise(data_dict: dict, logfilename: str, method: str, noise_fraction: fl
         
         for i in range(data_dict['number of systems']):
             
+            # generate new random noise array for each system
             rng = np.random.default_rng(seed = SeedVec[i] + 10000)
             
-            # generate new random noise array for each system
-            noise_array = rng.normal(0, noise_fraction*absolute_max, size=(1, data_dict['nw1'], data_dict['nw3'], data_dict['nt2']))
+            if submethod == 'uncorrelated':
+                
+                noise_array = rng.normal(0, noise_fraction * absolute_max, size=(1, nw1, nw3, nt2))
+                
+            elif submethod == 'correlated':    
+                # Generate noise stripes along w3 dimension (random along w1 pixels)
+                noise_array = rng.normal(0, noise_fraction * absolute_max, size=(1, 1, nw1, nt2))
+                
+   #          elif submethod == 'both':
+                
+   #              ratio = p['ratio correlated to uncorrelated noise']
+   #              noise_array_uncorrelated = rng.normal(0, noise_fraction * absolute_max, size=(1, nw1, nw3, nt2))
+   #              noise_array_correlated = rng.normal(0, noise_fraction * absolute_max, size=(1, 1, nw1, nt2))
+   #              scale = np.sqrt(ratio**2 + 1)
+   #              noise_array = (ratio * noise_array_correlated + noise_array_uncorrelated) / scale
+                
+   #              print_to_log_file(logfilename, f''' Variance check:
+   # Combined noise array: {np.std(noise_array)}
+   # Uncorrelated noise array: {np.std(noise_array_uncorrelated)} 
+   # Correlated noise array: {np.std(noise_array_correlated)}
+   
+   # expected noise width: {noise_fraction * absolute_max}''')
+
+                
             noise_array = np.float64(noise_array)
             
             # log signal and noise widths
             for j in range(data_dict['nt2']):
                 indv_spec = deepcopy(data_dict['spectra'][i,:,:,j])
                 data_dict['signal width'][i][j] = np.mean(np.abs(indv_spec))
-                data_dict['noise width'][i][j] = noise_fraction*absolute_max
+                indv_noise = deepcopy(noise_array[0,:,:,j])
+                data_dict['noise width'][i][j] = np.mean(np.abs(indv_noise))
+
+                # data_dict['noise width'][i][j] = noise_fraction*absolute_max
             
             # add noise
             data_dict['spectra'][i,:,:,:] = data_dict['spectra'][i,:,:,:] + noise_array
-    
+                
     
     elif method == 'intensity-dependent': 
         # signal + signal * noise
@@ -85,21 +123,22 @@ def add_noise(data_dict: dict, logfilename: str, method: str, noise_fraction: fl
             # log signal and noise widths
             for j in range(data_dict['nt2']):
                 indv_spec = deepcopy(data_dict['spectra'][i,:,:,j])
-                data_dict['signal width'][i][j] = np.mean(np.abs(indv_spec))
-                
+                data_dict['signal width'][i][j] = np.mean(np.abs(indv_spec)) 
                 indv_noise = deepcopy(noise_array[0,:,:,j])
                 data_dict['noise width'][i][j] = np.mean(np.abs(indv_noise))
               
             # add noise    
             data_dict['spectra'][i,:,:,:] = data_dict['spectra'][i,:,:,:] + noise_array
+        
     
-    if not SNR_filter:
+    if not p['SNR filter']:
         return data_dict, {}
     
     per_system = {'system ID numbers': [],
                   'SNR at t2 = 0': [],
                   'SNR at t2 = end': [],
                   'avg SNR of all t2': [],
+                  'avg SNR of kept t2': [],
                   'avg SNR of dropped t2': []}
         
     # SNR Filtering
@@ -139,7 +178,7 @@ def add_noise(data_dict: dict, logfilename: str, method: str, noise_fraction: fl
             avg_total_SNR += SNR 
             avg_total_SNR_perSys += SNR
             
-            if SNR < threshold:
+            if SNR <  p['SNR threshold']:
                 # Spectra will be tagged as False so that they are removed when mask is applied in PytorchDataset
                 data_dict['dropped images'][system_ID][j] = False
                 drop_count += 1
@@ -166,14 +205,14 @@ def add_noise(data_dict: dict, logfilename: str, method: str, noise_fraction: fl
         SNR_summary.update({'number of dropped spectra': drop_count,
                             'avg SNR of dropped spectra': avg_drop_SNR/drop_count})
         
-        print_to_log_file(logfilename, f'''\n! DROP WARNING !\n
-spectra dropped (low SNR): {drop_count} of {spec_count} ({100*drop_count/spec_count:.2f} %)
-Average SNR of dropped spectra: {avg_drop_SNR/drop_count}
-Average SNR of kept spectra: {avg_keep_SNR/(spec_count-drop_count)}
-Average SNR of all spectra: {avg_total_SNR/spec_count:.2f}\n''')
+        print_to_log_file(logfilename, f'''\n         ! DROP WARNING !\n
+   spectra dropped (low SNR): {drop_count} of {spec_count} ({100*drop_count/spec_count:.2f} %)
+   average SNR of dropped spectra: {avg_drop_SNR/drop_count:.2f}
+   average SNR of kept spectra: {avg_keep_SNR/(spec_count-drop_count):.2f}
+   average SNR of all spectra: {avg_total_SNR/spec_count:.2f}\n''')
 
     else:
-        print_to_log_file(logfilename, f'''\nNo spectra were dropped due to low SNR. Average SNR of all spectra: {avg_total_SNR/spec_count:.2f}\n''')
+        print_to_log_file(logfilename, f'''  No spectra were dropped due to low SNR. Average SNR of all spectra: {avg_total_SNR/spec_count:.2f}''')
    
     return data_dict, SNR_summary
 
@@ -213,7 +252,10 @@ def apply_pump(data_dict: dict, carrier: float, bandwidth: float) -> dict:
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
-def pollute_data(p: dict, dirs: dict, central_data: dict, iteration_inds: list) -> tuple:
+def pollute_data(p: dict, 
+                 dirs: dict, 
+                 central_data: dict, 
+                 iteration_inds: list) -> tuple:
     """
     Applies data modifications such as noise addition or pump effects.
     
@@ -229,17 +271,15 @@ def pollute_data(p: dict, dirs: dict, central_data: dict, iteration_inds: list) 
     data = deepcopy(central_data)
     data = self_normalize_datasets(data, dirs['log file'])
     
-    if p['num_vars'] == 1:
+    if p['number of swept variables'] == 1:
         
         iteration_number = iteration_inds[0]
         if p['task'] == 'noise':
             
-            data, SNR_summary = add_noise(data, 
-                                          dirs['log file'], 
-                                          p['noise method'], 
-                                          p['noise fraction'][iteration_number], 
-                                          p['SNR filter'], 
-                                          p['SNR threshold'])
+            data, SNR_summary = add_noise(p = p,
+                                          data_dict = data, 
+                                          logfilename = dirs['log file'], 
+                                          noise_fraction = p['noise fraction'][iteration_number])
             return data, SNR_summary
         
         elif p['task'] == 'bandwidth':
@@ -250,7 +290,7 @@ def pollute_data(p: dict, dirs: dict, central_data: dict, iteration_inds: list) 
             data = apply_pump(data, p['center frequency'][iteration_number], p['bandwidth'])
             return data, None
     
-    elif p['num_vars'] == 2:
+    elif p['number of swept variables'] == 2:
         
         if p['task'] == 'bandwidth and center frequency':
             data = apply_pump(data, p['center frequency'][iteration_inds[1]], p['bandwidth'][iteration_inds[0]])
@@ -295,7 +335,7 @@ Smallest max signal = {np.min(maxvals)}''')
             mv = np.max(np.max(np.abs(temp)))
             maxvals.append(mv) 
             
-        print_to_log_file(logfilename, f'''Post normalization:
+        print_to_log_file(logfilename, f'''  Post normalization:
     Largest signal = {np.max(maxvals)}
     Smallest signal = {np.min(maxvals)}''')    
         

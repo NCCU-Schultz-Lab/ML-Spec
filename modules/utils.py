@@ -1,10 +1,9 @@
 """
-Module containing helper functions for logging, debugging, and other utilities.
+Module containing helper functions and utilities
 """
 
 import pandas as pd
 from git import Repo, exc
-import re
 import numpy as np
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
@@ -36,7 +35,9 @@ def check_inputs(p, dirs):
                      'number of epochs', 
                      'batch size', 
                      'learning rate', 
-                     'dropout probability']
+                     'dropout probability',
+                     'data loading method',
+                     ]
     
     # Keys with defaults
     optional_keys = ['save iteration outputs', 
@@ -55,12 +56,13 @@ def check_inputs(p, dirs):
                               'SNR threshold', 
                               'noise method', 
                               'noise fraction'])
+        
 
     elif p['task'] in ['bandwidth', 'center frequency', 'bandwidth and center frequency']:
         required_keys.extend(['bandwidth', 'center frequency'])
 
     # Check for missing keys
-    print_to_log_file(dirs['log file'], "\nChecking for missing parameters:")
+    print_to_log_file(dirs['log file'], "Checking for missing parameters...")
     for key in required_keys + optional_keys:
         if key not in p:
             default_val = get_default_parameters(key)
@@ -70,8 +72,30 @@ def check_inputs(p, dirs):
             else:
                 p[key] = default_val
                 print_to_log_file(dirs['log file'], f"{key} set to default value: {p[key]}")
+     
+    #check for invalid requests
+    print_to_log_file(dirs['log file'], "Checking for invalid parameters...")
+    invalid_request_checks = ['save iteration outputs', 'data loading method']
     
-    print_to_log_file(dirs['log file'], "All required parameters verified.\n")
+    for key in invalid_request_checks:
+        valid_options = get_parameter_options(key)
+        if p[key] not in valid_options:
+            raise KeyError(f"Invalid request for parameter: '{key}'") 
+    
+    # check for conditionals            
+    if p['data loading method'] == 'single file':
+        if 'data file name' not in p:
+            raise KeyError("Missing required parameter: 'data file name'")
+            
+    if p['task'] == 'noise' and p['noise method'] == 'additive':
+        if 'noise submethod' not in p:
+            p['noise submethod'] = 'uncorrelated'
+            print_to_log_file(dirs['log file'], f"{'noise submethod'} set to default value: {p['noise submethod']}")
+            
+    # if p['t2 truncate'] == 'true' or p['t2 truncate'] == True:
+    #         't2 truncate index'
+    
+    print_to_log_file(dirs['log file'], "All parameters checked and verified.")
     
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
                 
@@ -102,23 +126,37 @@ def convert_parameter_datatypes(p):
         p['bandwidth'] = [float(item) for item in p['bandwidth']]
         
         
-    float_keys = ['learning rate', 'dropout probability', 'train-test split']
-    int_keys = ['input size', 'hidden layer size', 'number of epochs', 'batch size', 'spec save interval']
+    float_keys = ['learning rate', 
+                  'dropout probability', 
+                  'train-test split']
+    
+    int_keys = ['input size', 
+                'hidden layer size', 
+                'number of epochs', 
+                'batch size', 
+                'spec save interval', 
+                'check-system ID',
+                'split seed',
+                'numpy seed',
+                'torch seed',
+                't2 truncate index']
+    
+    bool_keys = ['save training reports', 
+                 'save 2D plots',
+                 'SNR filter',
+                 't2 truncate']
 
     for key in float_keys:
-        p[key] = float(p[key])
+        if key in p:
+            p[key] = float(p[key])
 
     for key in int_keys:
-        p[key] = int(p[key])
-
-# . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
-
-def extract_pattern(pattern, arg=None):
-    """Extracts the pattern from the input string arg."""
-    if arg is None:
-        return None
-    match = re.search(pattern, arg)
-    return match.group(0) if match else None
+        if key in p:
+            p[key] = int(p[key])
+            
+    for key in bool_keys:
+        if key in p:
+            p[key] = str_to_bool(p[key])
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
@@ -139,6 +177,7 @@ def get_default_parameters(arg):
                     'spec save interval': 5,
                     'check-system ID': 11,
                     't2 truncate': 'false',
+                    't2 truncate index': 10,
                     'train-test split': 0.8,
                     'torch seed': 2942,
                     'numpy seed': 72067,
@@ -146,6 +185,25 @@ def get_default_parameters(arg):
                     }
     
     return default_dict.get(arg, None)
+
+# . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
+
+def get_parameter_options(arg):
+    """
+    Returns the default parameter value if available.
+
+    Parameters:
+        arg (str): Name of the parameter.
+
+    Returns:
+        The default value if found, otherwise None.
+    """
+    
+    options_dict = {'save iteration outputs': ['none', 'partial', 'full'],
+                    'data loading method': ['single file', 'iterative']
+                    }
+    
+    return options_dict.get(arg, None)
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
@@ -196,7 +254,6 @@ def initialize_dataframes(p):
         }
     
     scan_key = task_to_scan_key.get(p['task'], None)
-    p['scan key'] = scan_key
 
         
     if p['task'] == 'bandwidth and center frequency':
@@ -236,7 +293,7 @@ def initialize_dataframes(p):
     accuracy_df = pd.DataFrame(index=range(1, p['total passes'] + 1), columns=accuracy_columns)
     f1_df = pd.DataFrame(index=range(1, p['total passes'] + 1), columns=f1_columns)
     
-    return p, accuracy_df, f1_df
+    return scan_key, accuracy_df, f1_df
     
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
@@ -250,6 +307,7 @@ def print_to_log_file(filename: str, message: str):
     """
     with open(filename, "a") as logfile:
         logfile.write(f'{message}\n')
+        logfile.flush()
         
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
@@ -279,14 +337,7 @@ def read_input_file(f):
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
-def remove_workspace_variables(variables_to_delete):
-    """
-    Clears variables from workspace
-    """
-    for var_name in variables_to_delete:
-        try:
-            del var_name
-        except KeyError:
-            pass
-        
+def str_to_bool(s):
+    return s.lower() == 'true'
+
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
