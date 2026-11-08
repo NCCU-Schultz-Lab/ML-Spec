@@ -1,0 +1,51 @@
+{
+  "title": "ML-Spec: machine learning for electronic couplings from two-dimensional electronic spectra",
+  "upload_type": "software",
+  "description": "<p>Machine learning for extracting molecular electronic couplings from two-dimensional electronic spectra (2DES). ML-Spec is the versioned public code for the Schultz Lab's ML spectroscopy papers; each paper cites the release it used. It continues the code published with Schultz, Parker, Sbaiti and Beratan, Digital Discovery 2025, 4, 1912&ndash;1924, whose history it keeps.</p>",
+  "creators": [
+    {
+      "name": "Schultz, Jonathan D.",
+      "affiliation": "North Carolina Central University",
+      "orcid": "0000-0002-3386-5460"
+    },
+    {
+      "name": "Parker, Kelsey A.",
+      "affiliation": "PsiQuantum Corp.",
+      "orcid": "0000-0002-9176-3681"
+    },
+    {
+      "name": "Sbaiti, Bashir",
+      "affiliation": "Princeton University",
+      "orcid": "0009-0004-3235-4740"
+    },
+    {
+      "name": "Beratan, David N.",
+      "affiliation": "Duke University",
+      "orcid": "0000-0003-4758-8676"
+    }
+  ],
+  "license": "MIT",
+  "access_right": "open",
+  "keywords": [
+    "machine learning",
+    "two-dimensional electronic spectroscopy",
+    "2DES",
+    "electronic coupling",
+    "ultrafast spectroscopy",
+    "inverse problems"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "10.5281/zenodo.15041004",
+      "relation": "isDerivedFrom",
+      "scheme": "doi",
+      "resource_type": "software"
+    },
+    {
+      "identifier": "10.1039/D5DD00125K",
+      "relation": "isSupplementTo",
+      "scheme": "doi",
+      "resource_type": "publication-article"
+    }
+  ]
+}
