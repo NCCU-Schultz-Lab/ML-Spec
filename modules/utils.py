@@ -5,6 +5,7 @@ Module containing helper functions and utilities
 import pandas as pd
 from git import Repo, exc
 import numpy as np
+from pathlib import Path
 
 # . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . . 
 
@@ -209,7 +210,9 @@ def get_parameter_options(arg):
 
 def get_git_info():
     try:
-        repo = Repo(search_parent_directories=True)
+        # Path to the current script (e.g., main.py) — assumed to be in repo
+        repo_root_path = Path(__file__).resolve().parent.parent  # adjust if needed
+        repo = Repo(repo_root_path, search_parent_directories=True)
         branch = repo.active_branch.name
         commit_hash = repo.head.object.hexsha
         tag = next((t.name for t in repo.tags if t.commit == repo.head.object), "No tag available")

@@ -11,6 +11,7 @@ import gc
 import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
+from pathlib import Path
 
 from modules.data_augmentation import pollute_data
 from modules.data_processing import load_central_dataset, classify_central_dataset, format_pytorch_datasets
@@ -26,11 +27,11 @@ from modules.visualization import save_checked_spectrum
 if __name__ == "__main__":
     
     verbose = True
-    input_path = sys.argv[1]
+    input_path = Path(sys.argv[1]).expanduser().resolve()
+    job_name = input_path.stem  # removes .inp
     
     with open(input_path, "r") as f:
         p = read_input_file(f)
-    job_name = os.path.splitext(os.path.basename(input_path))[0]  # removes .inp
     
     dirs = {'working': os.getcwd(),
             'database': f"{p['database path']}",
