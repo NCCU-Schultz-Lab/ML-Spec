@@ -1,0 +1,60 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite the paper for the release you used
+  (see the README's release table) and the software release itself.
+title: ML-Spec
+type: software
+abstract: >-
+  Machine learning for extracting molecular electronic couplings from
+  two-dimensional electronic spectra (2DES). Versioned public code for the
+  Schultz Lab's ML spectroscopy papers.
+authors:
+  - family-names: Schultz
+    given-names: Jonathan D.
+    orcid: "https://orcid.org/0000-0002-3386-5460"
+    affiliation: North Carolina Central University
+  - family-names: Parker
+    given-names: Kelsey A.
+    orcid: "https://orcid.org/0000-0002-9176-3681"
+    affiliation: PsiQuantum Corp.
+  - family-names: Sbaiti
+    given-names: Bashir
+    orcid: "https://orcid.org/0009-0004-3235-4740"
+    affiliation: Princeton University
+  - family-names: Beratan
+    given-names: David N.
+    orcid: "https://orcid.org/0000-0003-4758-8676"
+    affiliation: Duke University
+repository-code: "https://github.com/NCCU-Schultz-Lab/ML-Spec"
+license: MIT
+keywords:
+  - machine learning
+  - two-dimensional electronic spectroscopy
+  - 2DES
+  - electronic coupling
+  - ultrafast spectroscopy
+  - inverse problems
+preferred-citation:
+  type: article
+  title: >-
+    Using machine learning to map simulated noisy and laser-limited
+    multidimensional spectra to molecular electronic couplings
+  authors:
+    - family-names: Schultz
+      given-names: Jonathan D.
+      orcid: "https://orcid.org/0000-0002-3386-5460"
+    - family-names: Parker
+      given-names: Kelsey A.
+      orcid: "https://orcid.org/0000-0002-9176-3681"
+    - family-names: Sbaiti
+      given-names: Bashir
+      orcid: "https://orcid.org/0009-0004-3235-4740"
+    - family-names: Beratan
+      given-names: David N.
+      orcid: "https://orcid.org/0000-0003-4758-8676"
+  journal: Digital Discovery
+  volume: 4
+  start: 1912
+  end: 1924
+  year: 2025
+  doi: 10.1039/D5DD00125K

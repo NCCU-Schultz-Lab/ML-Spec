@@ -1,4 +1,5 @@
 /data
+/examples/example_dataset/
 __pycache__/
 *.pyc
 *.pyo
